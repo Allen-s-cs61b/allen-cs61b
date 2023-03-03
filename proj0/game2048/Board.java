@@ -88,6 +88,10 @@ public class Board implements Iterable<Tile> {
     public boolean move(int col, int row, Tile tile) {
         int pcol = viewPerspective.col(col, row, size()),
                 prow = viewPerspective.row(col, row, size());
+<<<<<<< HEAD
+=======
+        //if the moving location equals to the original location, that means its on the top role
+>>>>>>> 2484082 (add proj0 manually)
         if (tile.col() == pcol && tile.row() == prow) {
             return false;
         }
