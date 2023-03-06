@@ -53,10 +53,13 @@ public class ArrayDeque<T> {
 
     /** Remove the last value in the list */
     public T removeLast() {
-        size--;
+        if(size == 0) {
+            return null;
+        }
         return removeLast(nextLast);
     }
     private T removeLast(int n) {
+        size--;
         if(size == 0) {
             return null;
         }
@@ -75,13 +78,13 @@ public class ArrayDeque<T> {
 
     /** Remove the last value in the list */
     public T removeFirst() {
-        size--;
-        return removeFirst(nextFirst);
-    }
-    private T removeFirst(int n) {
         if(size == 0) {
             return null;
         }
+        return removeFirst(nextFirst);
+    }
+    private T removeFirst(int n) {
+        size--;
         if(nextFirst == array.length - 1) {
             nextFirst = 0;
         } else {
@@ -113,7 +116,11 @@ public class ArrayDeque<T> {
         if(n >= array.length || n < 0) {
             return null;
         }
-        return array[n + 1 + nextFirst];
+        int index = n + 1 + nextFirst;
+        if(index > array.length-1) {
+            index = index - array.length;
+        }
+        return array[index];
     }
 
     /** Print out the arrayList from nextFirst + 1 to nextLast -1 */
