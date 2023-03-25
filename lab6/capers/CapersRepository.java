@@ -1,6 +1,8 @@
 package capers;
 
 import java.io.File;
+import java.io.IOException;
+
 import static capers.Utils.*;
 
 /** A repository for Capers 
@@ -17,9 +19,11 @@ public class CapersRepository {
     /** Current Working Directory. */
     static final File CWD = new File(System.getProperty("user.dir"));
 
-    /** Main metadata folder. */
-    static final File CAPERS_FOLDER = null; // TODO Hint: look at the `join`
+    /** Main metadata folder ".capers". */
+    static final File CAPERS_FOLDER = join(CWD, ".capers"); // TODO Hint: look at the `join`
                                             //      function in Utils
+    static File story = join(CAPERS_FOLDER, "story");
+    static File dogs = Dog.DOG_FOLDER;
 
     /**
      * Does required filesystem operations to allow for persistence.
@@ -31,7 +35,10 @@ public class CapersRepository {
      *    - story -- file containing the current story
      */
     public static void setupPersistence() {
-        // TODO
+        // if .capers dir don't exist, create one
+        if(!CAPERS_FOLDER.exists()) {
+            CAPERS_FOLDER.mkdir();
+        }
     }
 
     /**
@@ -39,8 +46,13 @@ public class CapersRepository {
      * to a file called `story` in the .capers directory.
      * @param text String of the text to be appended to the story
      */
-    public static void writeStory(String text) {
-        // TODO
+    public static void writeStory(String text) throws IOException {
+        if(!story.exists()) {
+            story.createNewFile();
+        }
+        String newText = readContentsAsString(story) + text + "\n";
+        writeContents(story, newText);
+        System.out.println(readContentsAsString(story));
     }
 
     /**
@@ -48,8 +60,13 @@ public class CapersRepository {
      * three non-command arguments of args (name, breed, age).
      * Also prints out the dog's information using toString().
      */
-    public static void makeDog(String name, String breed, int age) {
-        // TODO
+    public static void makeDog(String name, String breed, int age) throws IOException {
+        if(!dogs.exists()) {
+            dogs.mkdir();
+        }
+        Dog dog = new Dog(name, breed, age);
+        dog.saveDog();
+        System.out.println(dog);
     }
 
     /**
@@ -58,7 +75,9 @@ public class CapersRepository {
      * Chooses dog to advance based on the first non-command argument of args.
      * @param name String name of the Dog whose birthday we're celebrating.
      */
-    public static void celebrateBirthday(String name) {
-        // TODO
+    public static void celebrateBirthday(String name) throws IOException {
+        Dog dog = Dog.fromFile(name);
+        dog.haveBirthday();
+        dog.saveDog();
     }
 }
