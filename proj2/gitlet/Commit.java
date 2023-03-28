@@ -5,9 +5,10 @@ package gitlet;
 import java.io.File;
 import java.io.Serializable;
 import static gitlet.Utils.*;
+
+import java.sql.Blob;
 import java.text.SimpleDateFormat;
-import java.util.TimeZone;
-import java.util.Date; // TODO: You'll likely use this in this class
+import java.util.*;
 
 
 /** Represents a gitlet commit object.
@@ -44,16 +45,24 @@ public class Commit implements Serializable {
     private String parent;
     /** The parent commmit, used for clone*/
     private Commit parentCommit;
-    private Blobs blobsID;
+    /**
+     *  The map that stores blobs
+     *  First string represents the file name which can be the same
+     *  Second string represents the unique sha1 hash of the blob
+     */
+    private Map<String, String> blobsMap = new HashMap<>();
     public Commit(String message) {
         //file name of the parent file(sha1)
-        String parentFileName = Repository.HEAD;
-        //clone the previous version
-        parentCommit = clonePrevious(parentFileName);
+        String parentFileName = readContentsAsString(Repository.HEAD);
+        //clone the previous version of commit object
+        this.parentCommit = clonePrevious(parentFileName);
         this.message = message;
+        //parent is the previous commit sha1 hash
         this.parent = parentFileName;
         Date date = new Date();
         this.timeStamp = simpleDateFormatter(date);
+        this.blobsMap = parentCommit.blobsMap;
+        this.updateBlobsMap();
     }
     /** Create initial commit */
     public Commit() {
@@ -70,15 +79,51 @@ public class Commit implements Serializable {
     public String generateID() {
         return sha1(serialize(this));
     }
+    /** Formatting date */
     private static String simpleDateFormatter(Date date) {
         SimpleDateFormat formatter = new SimpleDateFormat(("HH:mm:ss zzz, EEEE, d MMMM yyyy"));
         formatter.setTimeZone(TimeZone.getTimeZone("ETD"));
         return formatter.format(date);
     }
     /** Return the value of the previous version of commit to clone*/
-    public Commit clonePrevious(String fileName) {
+    private Commit clonePrevious(String fileName) {
         File inFile = join(COMMIT_DIR, fileName);
         Commit parentCommit = readObject(inFile, Commit.class);
         return parentCommit;
     }
+    /** Change the blobsMap based on the staging area, and delete file in staging area */
+    private void updateBlobsMap() {
+        if(Stage.stageEmpty()) {
+            System.out.println("No changes added to the commit.");
+            System.exit(0);
+        }
+        // Addition first: go through each file(should be Map too)
+        List<String> fileAdditionList = plainFilenamesIn(".gitlet/stage/addition");
+        for(String each : fileAdditionList) {
+            // Adding a key value pair in a map will change the value if it already exists in the map
+            // Just simply add all the file in regardless 不管怎么加 可以replace 可以加新的 可以不变 所以直接加就可以了
+            Blobs blob = new Blobs(each);
+            String blobID = blob.generateBlobID();
+            blobsMap.put(each, blobID);
+            File deleteFile = join(Stage.ADDITION, each);
+            deleteFile.delete();
+        }
+        // Remove second: go through each file and remove it from the map
+        List<String> fileRemoveList = plainFilenamesIn(".gitlet/stage/remove");
+        for(String each : fileRemoveList) {
+            blobsMap.remove(each);
+            File deleteFile = join(Stage.REMOVE, each);
+            deleteFile.delete();
+        }
+    }
+    /** Find a blob in the blobMap */
+    public String findBlobID(String fileName) {
+        String ID = blobsMap.get(fileName);
+        return ID;
+    }
+    /** Check if a file is already in the current commit's blobsap */
+    public boolean findFile(String fileName) {
+        return blobsMap.containsKey(fileName);
+    }
+
 }
