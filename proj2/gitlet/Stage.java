@@ -40,14 +40,6 @@ public class Stage {
             REMOVE.mkdir();
         }
     }
-    /**
-     * Check if the staging area have the same fileName file
-     * If the file exists return true
-     */
-    public static boolean fileCheck(String fileName){
-        File inFile = join(ADDITION, fileName);
-        return inFile.exists();
-    }
     /** Check if two file have the same content by comparing the contentID */
     public static boolean fileContentCheck(File file1, File file2) {
         return sha1(readContentsAsString(file1)) == sha1(readContentsAsString(file2));
@@ -71,7 +63,7 @@ public class Stage {
         writeContents(outFile, readContentsAsString(file1));
     }
     /**
-     * Check if a file is already in the staging area
+     * Check if a file is already in the ADDITION staging area
      */
     public static boolean findFile(String fileName) {
         File file = join(ADDITION, fileName);
@@ -81,14 +73,6 @@ public class Stage {
     public static boolean stageEmpty() {
         List<String> fileAddList = plainFilenamesIn(".gitlet/stage/addition");
         List<String> fileRemoveList = plainFilenamesIn(".gitlet/stage/remove");
-        //System.out.println("hi");
-        //System.out.println("Stage empty?" + fileAddList == null);
-        //System.out.println("hi");
-        for(String each : fileAddList) {
-            //System.out.println("1");
-            System.out.println(each);
-        }
-        //System.out.println("hi");
         return (fileAddList.isEmpty() && fileRemoveList.isEmpty());
     }
     /** Clean up the staging area */

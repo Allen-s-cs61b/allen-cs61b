@@ -51,6 +51,13 @@ public class Commit implements Serializable {
      *  Second string represents the unique sha1 hash of the blob
      */
     private Map<String, String> blobsMap = new HashMap<>();
+    /** Set up COMMIT_DIR */
+    public static void setupCommit() {
+        if(!COMMIT_DIR.exists()) {
+            COMMIT_DIR.mkdir();
+        }
+    }
+    /** Constructor for normal commit */
     public Commit(String message) {
         //file name of the parent file(sha1)
         String parentFileName = readContentsAsString(Repository.HEAD);
@@ -67,22 +74,32 @@ public class Commit implements Serializable {
     /** Create initial commit */
     public Commit() {
         this.message = "This is the initial commit!";
-        this.timeStamp = "00:00:00 UTC, Thursday, 1 January 1970";
-    }
-    /** Set up COMMIT_DIR */
-    public static void setupCommit() {
-        if(!COMMIT_DIR.exists()) {
-            COMMIT_DIR.mkdir();
-        }
+        Date date = new Date(0);
+        this.timeStamp = simpleDateFormatter(date);
     }
     /** Generate a unique ID for the commit object */
     public String generateID() {
         return sha1(serialize(this));
     }
+    /** Print commit for log */
+    public void printCommit() {
+        // Print the current commit
+        System.out.println("===" + "\n" + "commit " + this.generateID()
+                + "\n" + "Date: " + this.timeStamp
+                + "\n" + this.message);
+        // If parent is null
+        if(this.generateID().equals(Repository.initCommitID)) {
+            return;
+        }
+        String parentID = this.parent;
+        File inFile = join(Commit.COMMIT_DIR, parentID);
+        Commit currentCommit = readObject(inFile, Commit.class);
+        currentCommit.printCommit();
+    }
     /** Formatting date */
     private static String simpleDateFormatter(Date date) {
-        SimpleDateFormat formatter = new SimpleDateFormat(("HH:mm:ss zzz, EEEE, d MMMM yyyy"));
-        formatter.setTimeZone(TimeZone.getTimeZone("ETD"));
+        SimpleDateFormat formatter = new SimpleDateFormat(("EEE MMM d HH:mm:ss yyyy Z"));//"HH:mm:ss zzz, EEEE, d MMMM yyyy"
+        formatter.setTimeZone(TimeZone.getTimeZone("EST"));
         return formatter.format(date);
     }
     /** Return the value of the previous version of commit to clone*/
@@ -105,23 +122,21 @@ public class Commit implements Serializable {
             Blobs blob = new Blobs(each);
             String blobID = blob.generateBlobID();
             blobsMap.put(each, blobID);
+            // Clean up the ADDITION stage
             File deleteFile = join(Stage.ADDITION, each);
             deleteFile.delete();
         }
         // Remove second: go through each file and remove it from the map
+        // (the map should have it for it to on the remove stage)
         List<String> fileRemoveList = plainFilenamesIn(".gitlet/stage/remove");
         for(String each : fileRemoveList) {
             blobsMap.remove(each);
+            // Clean up the REMOVE stage
             File deleteFile = join(Stage.REMOVE, each);
             deleteFile.delete();
         }
     }
-    /** Find a blob in the blobMap */
-    public String findBlobID(String fileName) {
-        String ID = blobsMap.get(fileName);
-        return ID;
-    }
-    /** Check if a file is already in the current commit's blobsap */
+    /** Check if a file is already in the current commit's blobsMap */
     public boolean findFile(String fileName) {
         return blobsMap.containsKey(fileName);
     }

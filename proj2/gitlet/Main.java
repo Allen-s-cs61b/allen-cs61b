@@ -47,7 +47,9 @@ public class Main {
                 //create a commit
                 Repository.makeCommit(args[1]);
                 break;
-
+            case "log":
+                Repository.log();
+                break;
         }
     }
 }

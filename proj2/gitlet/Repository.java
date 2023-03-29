@@ -2,10 +2,7 @@ package gitlet;
 
 import java.io.File;
 import java.io.IOException;
-
 import static gitlet.Utils.*;
-
-// TODO: any imports you need here
 
 /** Represents a gitlet repository.
  *  TODO: It's a good idea to give a description here of what else this Class
@@ -17,8 +14,6 @@ import static gitlet.Utils.*;
  */
 public class Repository {
     /**
-     * TODO: add instance variables here.
-     *
      * Create all the necessary directory and file
      * List all instance variables of the Repository class here with a useful
      * comment above them describing what that variable represents and how that
@@ -33,8 +28,8 @@ public class Repository {
     public static File HEAD = join(GITLET_DIR, "HEAD");
     /** The master pointer that points to the latest branch ID*/
     public static File master = join(GITLET_DIR, "master");
-    /** The stage directory */
-    public static Stage stage;
+    /** Store the ID of the initCommit */
+    public static final String initCommitID = new Commit().generateID();
 
     /** Set up all the directories */
     public static void setupRepository() {
@@ -51,10 +46,13 @@ public class Repository {
     public static void makeInitCommit() {
         Commit initCommit = new Commit();
         File commitFile = join(Commit.COMMIT_DIR, initCommit.generateID());
+        if(commitFile.exists()) {
+            System.out.println("A Gitlet version-control system already exists in the current directory.");
+            System.exit(0);
+        }
         writeObject(commitFile, initCommit);
         writeContents(HEAD, initCommit.generateID());
         writeContents(master, initCommit.generateID());
-
     }
     /**
      * Description: Adds a copy of the file as it currently exists to the staging area (see the
@@ -74,8 +72,8 @@ public class Repository {
             System.out.println("File does not exist.");
             System.exit(0);
         }
-        // Check if it is already in the Staging area
-        if(Stage.fileCheck(fileName)){
+        // Check if it is already in the ADDITION Staging area
+        if(Stage.findFile(fileName)){
             File inFile = join(Stage.ADDITION, fileName);
             // Staging the file
             Stage.stagingSameNameFile(currentFile, inFile);
@@ -107,7 +105,9 @@ public class Repository {
         // If the file is in the current commit, add the file to remove stage(you dont need to know the file content)
         if(currentCommit.findFile(fileName)) {
             File outFile = join(Stage.REMOVE, fileName);
-            outFile.createNewFile();
+            if(!outFile.exists()) {
+                outFile.createNewFile();
+            }
         }
         // If the file is in the working directory, remove it
         File CWDFile = join(CWD, fileName);
@@ -122,6 +122,29 @@ public class Repository {
         writeObject(commitFile, commit);
         writeContents(HEAD, commit.generateID());
         writeContents(master, commit.generateID());
+    }
+    /**
+     * Description: Starting at the current head commit, display information about each
+     * commit backwards along the commit tree until the initial commit, following the
+     * first parent commit links, ignoring any second parents found in merge commits.
+     * (In regular Git, this is what you get with git log --first-parent). This set of
+     * commit nodes is called the commit’s history. For every node in this history, the
+     * information it should display is the commit id, the time the commit was made,
+     * and the commit message. Here is an example of the exact format it should follow:
+     *         ===
+     *         commit sha1 ID
+     *         Date:
+     *         commit message
+     *         \n
+     */
+    public static void log() {
+        // Iterate commit starting from HEAD, then next one is its parent commit, until parent commit == null return;
+        // HEAD commit, HEAD is the ID of the commit file, to find the commit, use the ID in HEAD to find the actual
+        // commit file in the COMMIT_DIR, then readObject as commit
+        String commitID = readContentsAsString(HEAD);
+        File inFile = join(Commit.COMMIT_DIR, commitID);
+        Commit currentCommit = readObject(inFile, Commit.class);
+        currentCommit.printCommit();
     }
 
 }
