@@ -50,6 +50,18 @@ public class Main {
             case "log":
                 Repository.log();
                 break;
+            case "global-log":
+                Repository.global_log();
+                break;
+            case "find":
+                if(args.length == 1){
+                    System.out.println("Please enter a message.");
+                    System.exit(0);
+                }
+                Repository.find(args[1]);
+                break;
+            case "status":
+
         }
     }
 }

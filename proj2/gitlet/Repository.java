@@ -2,6 +2,8 @@ package gitlet;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
+
 import static gitlet.Utils.*;
 
 /** Represents a gitlet repository.
@@ -144,7 +146,28 @@ public class Repository {
         String commitID = readContentsAsString(HEAD);
         File inFile = join(Commit.COMMIT_DIR, commitID);
         Commit currentCommit = readObject(inFile, Commit.class);
-        currentCommit.printCommit();
+        currentCommit.printCommitLog();
+    }
+    /**
+     * Description: Like log, except displays information about all commits ever made.
+     * The order of the commits does not matter. Hint: there is a useful method in gitlet.Utils
+     * that will help you iterate over files within a directory.
+     */
+    public static void global_log() {
+        Commit.printCommitGlobalLog();
+    }
+    /**
+     * Description: Prints out the ids of all commits that have the given commit message, one per
+     * line. If there are multiple such commits, it prints the ids out on separate lines. The commit
+     * message is a single operand; to indicate a multiword message, put the operand in quotation
+     * marks, as for the commit command below. Hint: the hint for this command is the same as the
+     * one for global-log
+     */
+    public static void find(String message) {
+        boolean exist = Commit.find(message);
+        if(!exist) {
+            System.out.println("Found no commit with that message.");
+        }
     }
 
 }

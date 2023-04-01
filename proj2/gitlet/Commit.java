@@ -81,12 +81,17 @@ public class Commit implements Serializable {
     public String generateID() {
         return sha1(serialize(this));
     }
-    /** Print commit for log */
-    public void printCommit() {
+    /** Print each commit */
+    private void printCommit() {
         // Print the current commit
         System.out.println("===" + "\n" + "commit " + this.generateID()
                 + "\n" + "Date: " + this.timeStamp
-                + "\n" + this.message);
+                + "\n" + this.message + "\n");
+    }
+    /** Print commit for log */
+    public void printCommitLog() {
+        // Print the current commit
+        this.printCommit();
         // If parent is null
         if(this.generateID().equals(Repository.initCommitID)) {
             return;
@@ -94,7 +99,33 @@ public class Commit implements Serializable {
         String parentID = this.parent;
         File inFile = join(Commit.COMMIT_DIR, parentID);
         Commit currentCommit = readObject(inFile, Commit.class);
-        currentCommit.printCommit();
+        currentCommit.printCommitLog();
+    }
+    /** Print commit for global-log */
+    public static void printCommitGlobalLog() {
+        // Iterate through the commit directory and print the commit despite the order
+        List<String> commitList = plainFilenamesIn(COMMIT_DIR);
+        for(String each : commitList) {
+            File inFile = join(COMMIT_DIR, each);
+            Commit commit = readObject(inFile, Commit.class);
+            commit.printCommit();
+        }
+    }
+    /** Find commits with certain message in the Commit directory, return true if it has at least one */
+    public static boolean find(String message) {
+        // Record if the commit folder has such commit, change to true if find one
+        boolean exist = false;
+        // Iterate through the commit directory and print the commit despite the order
+        List<String> commitList = plainFilenamesIn(COMMIT_DIR);
+        for(String each : commitList) {
+            File inFile = join(COMMIT_DIR, each);
+            Commit commit = readObject(inFile, Commit.class);
+            if(commit.message.equals(message)) {
+                System.out.println(commit.generateID());
+                exist = true;
+            }
+        }
+        return exist;
     }
     /** Formatting date */
     private static String simpleDateFormatter(Date date) {
