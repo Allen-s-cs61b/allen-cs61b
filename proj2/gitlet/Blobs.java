@@ -21,6 +21,8 @@ public class Blobs implements Serializable {
      *  The ID can be used to compare whether the content of two same name files are the same
      */
     private String contentID;
+    /** The content of the file in String */
+    private String content;
     /** Directory for storing blobs, each file has name blobID */
     public static final File BLOBS_DIR = join(Repository.GITLET_DIR, "blobs");
     /**  Constructor of Blobs, if someone uses add/rm they add or remove a file, the file name will
@@ -34,6 +36,28 @@ public class Blobs implements Serializable {
         File inFile = join(Repository.CWD, fileName);
         // Read the inFile("Hello.txt") and set the ID to its sha1 value
         this.contentID = generateFileID(inFile);
+        this.content = readContentsAsString(inFile);
+        // Add the blob to the BLOBS_DIR
+        File blob = join(BLOBS_DIR, this.generateBlobID());
+        writeObject(blob,this);
+    }
+    /** Set up blobs directory */
+    public static void setUpBlobs() {
+        if(!BLOBS_DIR.exists()) {
+            BLOBS_DIR.mkdir();
+        }
+    }
+    /** Return the file name in the current blob */
+    public String getFileName() {
+        return this.fileName;
+    }
+    /** Return the file ID in the current blob */
+    public String getFileID() {
+        return this.contentID;
+    }
+    /** Return the content of the file in the blob */
+    public String getContent() {
+        return this.content;
     }
     /** Generate ID based on sha1 hash */
     private String generateFileID(File file) {
@@ -43,11 +67,10 @@ public class Blobs implements Serializable {
     public String generateBlobID() {
         return sha1(serialize(this));
     }
-    /** Check if one blob is identical to another */
-    public boolean blobCompare(Blobs blob1, Blobs blob2) {
-        if(blob1.fileName == blob2.fileName && blob1.contentID == blob2.contentID) {
-            return true;
-        }
-        return false;
+    /** Return the blob based on the blobID */
+    public static Blobs getBlob(String blobID) {
+        File blobFile = join(BLOBS_DIR, blobID);
+        Blobs blob = readObject(blobFile, Blobs.class);
+        return blob;
     }
 }

@@ -82,6 +82,7 @@ public class Stage {
             for(String each : fileAddList) {
                 File deleteFile = join(ADDITION, each);
                 deleteFile.delete();
+                //restrictedDelete(each);
             }
         }
         List<String> fileRemoveList = plainFilenamesIn(".gitlet/stage/remove");

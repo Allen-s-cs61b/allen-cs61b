@@ -61,7 +61,27 @@ public class Main {
                 Repository.find(args[1]);
                 break;
             case "status":
-
+                Repository.status();
+                break;
+            case "checkout":
+                if(args.length == 1){
+                    System.out.println("Please enter a message.");
+                    System.exit(0);
+                }
+                if(args.length == 3) {
+                    Repository.checkout(Repository.getContentAsString(Repository.HEAD), args[2]);
+                } else if(args.length == 4) {
+                    Repository.checkout(args[1], args[3]);
+                } else if(args.length == 2) {
+                    Repository.checkout(args[1]);
+                }
+                break;
+            case "branch":
+                if(args.length == 1){
+                    System.out.println("Please enter a branch name.");
+                    System.exit(0);
+                }
+                Repository.branch(args[1]);
         }
     }
 }

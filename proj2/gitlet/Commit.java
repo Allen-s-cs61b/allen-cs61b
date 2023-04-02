@@ -51,6 +51,8 @@ public class Commit implements Serializable {
      *  Second string represents the unique sha1 hash of the blob
      */
     private Map<String, String> blobsMap = new HashMap<>();
+    /** Store the ID of the initCommit */
+    public static final String initCommitID = new Commit().generateID();
     /** Set up COMMIT_DIR */
     public static void setupCommit() {
         if(!COMMIT_DIR.exists()) {
@@ -81,6 +83,13 @@ public class Commit implements Serializable {
     public String generateID() {
         return sha1(serialize(this));
     }
+    /** Get the current based on the commitID */
+    public static Commit getCommit(String commitID) {
+        //String CommitID = readContentsAsString(Repository.HEAD);
+        File CommitFile = join(COMMIT_DIR, commitID);
+        Commit commit = readObject(CommitFile, Commit.class);
+        return commit;
+    }
     /** Print each commit */
     private void printCommit() {
         // Print the current commit
@@ -93,7 +102,7 @@ public class Commit implements Serializable {
         // Print the current commit
         this.printCommit();
         // If parent is null
-        if(this.generateID().equals(Repository.initCommitID)) {
+        if(this.generateID().equals(initCommitID)) {
             return;
         }
         String parentID = this.parent;
@@ -126,6 +135,11 @@ public class Commit implements Serializable {
             }
         }
         return exist;
+    }
+    /** Find commit based on the commit ID, return true if the ID exist, false if not */
+    public static boolean findWithID(String commitID) {
+        List<String> commitList = plainFilenamesIn(".gitlet/commit");
+        return commitList.contains(commitID);
     }
     /** Formatting date */
     private static String simpleDateFormatter(Date date) {
@@ -171,5 +185,15 @@ public class Commit implements Serializable {
     public boolean findFile(String fileName) {
         return blobsMap.containsKey(fileName);
     }
-
+    /** Get the blobID using the file name */
+    public String getBlobID(String fileName) {
+        return blobsMap.get(fileName);
+    }
+    public List<Blobs> getBlobsList() {
+        List<Blobs> blobsList = new ArrayList<>();
+        for(String value : blobsMap.values()) {
+            blobsList.add(Blobs.getBlob(value));
+        }
+        return blobsList;
+    }
 }

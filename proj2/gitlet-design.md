@@ -65,4 +65,5 @@ The Repository will set up all the persistence
 3. COMMIT_DIR commit directory that stores all the commit file(sha1 ID)
 4. HEAD directory that stores the head pointer(current commit)
 5. master directory that stores the master pointer(the master commit)
+6. BLOBS_DIR directory that stores blobs, using the ID as the file name
 
