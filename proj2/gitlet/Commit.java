@@ -75,7 +75,7 @@ public class Commit implements Serializable {
     }
     /** Create initial commit */
     public Commit() {
-        this.message = "This is the initial commit!";
+        this.message = "initial commit";
         Date date = new Date(0);
         this.timeStamp = simpleDateFormatter(date);
     }
@@ -155,10 +155,6 @@ public class Commit implements Serializable {
     }
     /** Change the blobsMap based on the staging area, and delete file in staging area */
     private void updateBlobsMap() {
-        if(Stage.stageEmpty()) {
-            System.out.println("No changes added to the commit.");
-            System.exit(0);
-        }
         // Addition first: go through each file(should be Map too)
         List<String> fileAdditionList = plainFilenamesIn(".gitlet/stage/addition");
         for(String each : fileAdditionList) {

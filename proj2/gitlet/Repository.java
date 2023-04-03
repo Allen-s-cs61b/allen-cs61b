@@ -99,7 +99,7 @@ public class Repository {
         // List of the files in the current working directory which will be the future repository
         parseCopyRepository();
     }
-    /** Get the String(ID to commit) in the pointer */
+    /** Get the content as string(ID to commit) in the pointer */
     public static String getContentAsString(File file) {
         return readContentsAsString(file);
     }
@@ -121,15 +121,7 @@ public class Repository {
             System.out.println("File does not exist.");
             System.exit(0);
         }
-        // Check if it is already in the ADDITION Staging area
-        if(Stage.findFile(fileName)){
-            File inFile = join(Stage.ADDITION, fileName);
-            // Staging the file
-            Stage.stagingSameNameFile(currentFile, inFile);
-        } else {
-            // Staging the file
-            Stage.stagingFile(currentFile, fileName);
-        }
+        Stage.stagingFile(fileName);
     }
     /**
      *  Description: Unstage the file if it is currently staged for addition. If the file
@@ -141,30 +133,40 @@ public class Repository {
         //current commit is the HEAD
         Commit currentCommit = Commit.getCommit(getContentAsString(HEAD));
         // Check if the staging area has the file and if the current commit has the file
-        if(!Stage.findFile(fileName) && !currentCommit.findFile(fileName)) {
+        if(!Stage.findFileADDITION(fileName) && !currentCommit.findFile(fileName)) {
             System.out.println("No reason to remove the file.");
             System.exit(0);
         }
         // If the file is in the addition stage, remove it
-        if(Stage.findFile(fileName)) {
+        if(Stage.findFileADDITION(fileName)) {
             File deleteFile = join(Stage.ADDITION, fileName);
             deleteFile.delete();
         }
-        // If the file is in the current commit, add the file to remove stage(you dont need to know the file content)
+        // If the file is in the current commit, add the file to remove stage(you don't
+        // need to know the file content)
         if(currentCommit.findFile(fileName)) {
             File outFile = join(Stage.REMOVE, fileName);
             if(!outFile.exists()) {
                 outFile.createNewFile();
             }
+            // If the file is in the working directory, remove it
+            File CWDFile = join(CWD, fileName);
+            if(CWDFile.exists()) {
+                CWDFile.delete();
+            }
         }
-        // If the file is in the working directory, remove it
-        File CWDFile = join(CWD, fileName);
-        if(CWDFile.exists()) {
-            CWDFile.delete();
-        }
+
     }
     /** Make a commit */
     public static void makeCommit(String message) throws IOException {
+        if(message.equals("")) {
+            System.out.println("Please enter a commit message.");
+            System.exit(0);
+        }
+        if(Stage.stageEmpty()) {
+            System.out.println("No changes added to the commit.");
+            System.exit(0);
+        }
         Commit commit = new Commit(message);
         File commitFile = join(Commit.COMMIT_DIR, commit.generateID());
         writeObject(commitFile, commit);
@@ -247,7 +249,7 @@ public class Repository {
         // as the files in the current commit
         System.out.println("\n" + "=== Modifications Not Staged For Commit ===");
         // Printing the untracked files
-        System.out.println("\n" + "=== Untracked Stuff ===");
+        System.out.println("\n" + "=== Untracked Files ===");
         List<String> untrackedFiles = untrackedFile();
         Collections.sort(untrackedFiles);
         if(!untrackedFiles.isEmpty()) {

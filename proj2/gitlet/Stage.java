@@ -1,6 +1,7 @@
 package gitlet;
 
 
+import java.io.CharArrayWriter;
 import java.io.File;
 import java.util.List;
 
@@ -51,22 +52,78 @@ public class Stage {
      * ?? the content of the file is blobID?
      */
     public static void stagingSameNameFile(File file1, File file2) {
+        // The staging area has the file(means 1. the file is not the same as the file
+        // in the current commit if there is one 2. there is no same file in the REMOVE)
+        // if it is the same as the file in ADDITION, do nothing
+        // if it is not the same, overwrite the file,
+        // then check if the current commit has the file, if same content remove the ADDITION file
         if(!fileContentCheck(file1, file2)) {
             writeContents(file2, readContentsAsString(file1));
         }
+        // The staging are does not have the file,
+        // Check if the current commit has the same file, if not add file to stage remove file in REMOVE
+        // if yes check REMOVE
     }
+    /**
+     * Staging a file
+     */
+    public static void stagingFile(String fileName) {
+        // The file exist!
+        // Check if the file is in the currentCommit
+        Commit currentCommit = Commit.getCommit(readContentsAsString(Repository.HEAD));
+        Blobs blobStaging = new Blobs(fileName);
+        if(currentCommit.findFile(fileName)) {
+            // If the file is tracked in current commit
+            String blobID = currentCommit.getBlobID(fileName);
+            Blobs blobExisted = Blobs.getBlob(blobID);
+            if(blobStaging.getContent().equals(blobExisted.getContent())) {
+                // If identical, check the ADDITION and delete whatever is there
+                if(findFileADDITION(fileName)) {
+                    File deleteFile = join(ADDITION, fileName);
+                    deleteFile.delete();
+                }
+            } else {
+                // If not identical, just write to the ADDITION folder
+                stagingFileADDTION(fileName);
+            }
+        } else {
+            // If the file is not tracked in the current commit
+            stagingFileADDTION(fileName);
+        }
+        fileRemove(fileName);
+    }
+    /**
+     * Remove a file from REMOVE if it exist
+     */
+    private static void fileRemove(String fileName) {
+        if(findFileREMOVE(fileName)) {
+            File deleteFile = join(REMOVE, fileName);
+            deleteFile.delete();
+        }
+    }
+    /**
+     * Staging a file in the current stage
+     */
     /**
      * Staging a file that is not in the staging area
      */
-    public static void stagingFile(File file1, String fileName) {
-        File outFile = join(ADDITION, fileName);
-        writeContents(outFile, readContentsAsString(file1));
+    public static void stagingFileADDTION(String fileName) {
+        File file = join(Repository.CWD, fileName);
+        File inFile = join(ADDITION, fileName);
+        writeContents(inFile, readContentsAsString(file));
     }
     /**
      * Check if a file is already in the ADDITION staging area
      */
-    public static boolean findFile(String fileName) {
+    public static boolean findFileADDITION(String fileName) {
         File file = join(ADDITION, fileName);
+        return file.exists();
+    }
+    /**
+     * Check if a file is already in the REMOVE staging area
+     */
+    public static boolean findFileREMOVE(String fileName) {
+        File file = join(REMOVE, fileName);
         return file.exists();
     }
     /** Check if the stage is empty */

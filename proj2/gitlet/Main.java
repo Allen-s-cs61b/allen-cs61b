@@ -64,18 +64,21 @@ public class Main {
                 Repository.status();
                 break;
             case "checkout":
-                if(args.length == 1){
-                    System.out.println("Please enter a message.");
-                    System.exit(0);
+                switch(args.length) {
+                    case 1:
+                        System.out.println("Please enter a message.");
+                        System.exit(0);
+                        break;
+                    case 2:
+                        Repository.checkout(Repository.getContentAsString(Repository.HEAD), args[2]);
+                        break;
+                    case 3:
+                        Repository.checkout(args[1], args[3]);
+                        break;
+                    case 4:
+                        Repository.checkout(args[1]);
+                        break;
                 }
-                if(args.length == 3) {
-                    Repository.checkout(Repository.getContentAsString(Repository.HEAD), args[2]);
-                } else if(args.length == 4) {
-                    Repository.checkout(args[1], args[3]);
-                } else if(args.length == 2) {
-                    Repository.checkout(args[1]);
-                }
-                break;
             case "branch":
                 if(args.length == 1){
                     System.out.println("Please enter a branch name.");
