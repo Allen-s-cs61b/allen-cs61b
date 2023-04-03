@@ -9,7 +9,6 @@ import java.util.Collections;
 import static gitlet.Utils.*;
 
 /** Represents a gitlet repository.
- *  TODO: It's a good idea to give a description here of what else this Class
  *  does at a high level.
  *  Set up all the directories?
  *  It has all the methods thats gonna be used in Main?
@@ -28,12 +27,17 @@ public class Repository {
     public static final File CWD = new File(System.getProperty("user.dir"));
     /** The .gitlet directory. */
     public static final File GITLET_DIR = join(CWD, ".gitlet");
+    /**
+     * The directory for all the pointers(HEAD, head for each branch(with the name of the branch),
+     * currentBranch)
+     */
+    public static File HEAD_DIR = join(GITLET_DIR, "heads");
     /** The HEAD pointer that points to the current working place ID */
-    public static File HEAD = join(GITLET_DIR, "HEAD");
+    public static File HEAD = join(HEAD_DIR, "HEAD");
     /** The master pointer that points to the latest branch ID*/
-    public static File master = join(GITLET_DIR, "master");
+    public static File master = join(HEAD_DIR, "master");
     /** The current branch */
-    private static File currentBranch = join(GITLET_DIR, "currentBranch");
+    private static File currentBranch = join(HEAD_DIR, "currentBranch");
     /** Branch list that stores all the branches */
     private static File branchList = join(GITLET_DIR, "branchList");
     /** Track the file in the repository, set up everytime commit is called */
@@ -49,6 +53,9 @@ public class Repository {
         }
         if(!repository.exists()) {
             repository.mkdir();
+        }
+        if(!HEAD_DIR.exists()) {
+            HEAD_DIR.mkdir();
         }
         // Set up stage directories STAGE_DIR (ADDITION, REMOVE)(think about static method or non static or constructor
         Stage.setupStage();
@@ -89,14 +96,57 @@ public class Repository {
             System.exit(0);
         }
         writeObject(commitFile, initCommit);
+        // Set up all other the files
+        setupInitCommit(initCommit);
+    }
+
+    /**
+     * Setup all the files for initial commit(HEAD, master, currentBranch, branchList)
+     * @param initCommit
+     */
+    private static void setupInitCommit(Commit initCommit) throws IOException {
+        // Set the HEAD and master branch head pointer
         writeContents(HEAD, initCommit.generateID());
         writeContents(master, initCommit.generateID());
         // Set the currentBranch to master (overwrite whatever)
         writeContents(currentBranch, "master");
         // Add the name of master in the branchList
-        File branch = join(branchList, "master");
-        branch.createNewFile();
+        File newBranch = join(branchList, "master");
+        newBranch.createNewFile();
         // List of the files in the current working directory which will be the future repository
+        parseCopyRepository();
+    }
+
+    /**
+     *
+     * @param message
+     * @throws IOException
+     */
+    public static void makeCommit(String message) throws IOException {
+        if(message.equals("")) {
+            System.out.println("Please enter a commit message.");
+            System.exit(0);
+        }
+        if(Stage.stageEmpty()) {
+            System.out.println("No changes added to the commit.");
+            System.exit(0);
+        }
+        Commit commit = new Commit(message);
+        File commitFile = join(Commit.COMMIT_DIR, commit.generateID());
+        writeObject(commitFile, commit);
+        setupCommit(commit);
+    }
+    /**
+     * Set up all the files for commit(HEAD, update branch head pointer based on currentBranch,
+     * repository)
+     */
+    private static void setupCommit(Commit commit) throws IOException {
+        // Update HEAD
+        writeContents(HEAD, commit.generateID());
+        // Update current branch head
+        String branchName = readContentsAsString(currentBranch);
+        File branchHead = join(HEAD_DIR, branchName);
+        writeContents(branchHead, commit.generateID());
         parseCopyRepository();
     }
     /** Get the content as string(ID to commit) in the pointer */
@@ -156,22 +206,6 @@ public class Repository {
             }
         }
 
-    }
-    /** Make a commit */
-    public static void makeCommit(String message) throws IOException {
-        if(message.equals("")) {
-            System.out.println("Please enter a commit message.");
-            System.exit(0);
-        }
-        if(Stage.stageEmpty()) {
-            System.out.println("No changes added to the commit.");
-            System.exit(0);
-        }
-        Commit commit = new Commit(message);
-        File commitFile = join(Commit.COMMIT_DIR, commit.generateID());
-        writeObject(commitFile, commit);
-        writeContents(HEAD, commit.generateID());
-        parseCopyRepository();
     }
     /**
      * Description: Starting at the current head commit, display information about each
@@ -271,9 +305,18 @@ public class Repository {
         List<String> workingDir = plainFilenamesIn(CWD);
         List<String> untrackedFile = new ArrayList<>();
         List<String> additionList = plainFilenamesIn(".gitlet/stage/addition");
+        Commit currentCommit = Commit.getCommit(readContentsAsString(HEAD));
         for(String each : workingDir) {
-            if(!repository.contains(each) && !additionList.contains(each)) {
-                untrackedFile.add(each);
+            // A file is not tracked if it is in the current CWD
+            // but not in the previous repository(exclude files like gitlet-design.md, makefile, pom.xml, proj2.iml)
+            // 1. not tracked and not staged for addition
+            // 2. in the remove(rm but added back)
+            if(!repository.contains(each)) {
+                if(!Commit.trackFile(each) && !Stage.findFileADDITION(each)) {
+                    untrackedFile.add(each);
+                } else if(Stage.findFileREMOVE(each)) {
+                    untrackedFile.add(each);
+                }
             }
         }
         return untrackedFile;
@@ -336,7 +379,7 @@ public class Repository {
             System.exit(0);
         }
         List<String> untrackedFile = untrackedFile();
-        if(untrackedFile.contains(branchName)) {
+        if(!untrackedFile.isEmpty()) {
             System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
             System.exit(0);
         }
@@ -353,6 +396,11 @@ public class Repository {
             File outFile = join(CWD, each.getFileName());
             writeContents(outFile, each.getContent());
         }
+        // Update the current branch
+        writeContents(currentBranch, branchName);
+        // Update the branch head
+        File branchHead = join(HEAD_DIR, branchName);
+        writeContents(branchHead, currentCommit.generateID());
         // Clean stage
         Stage.stageClean();
     }
@@ -369,17 +417,17 @@ public class Repository {
      * Failure cases: If a branch with the given name already exists, print the error message A
      * branch with that name already exists.
      */
-    public static void branch(String name) throws IOException {
-        //points at the current head means the parent is the current head
-        File newBranch = join(GITLET_DIR, name);
+    public static void branch(String branchName) throws IOException {
+        // Check if the branch is already in the branch list
+        File newBranch = join(branchList, branchName);
         if(newBranch.exists()) {
             System.out.println("A branch with that name already exists.");
             System.exit(0);
         }
-        // Write the content in the current HEAD commit to the new branch head
-        writeContents(newBranch, getContentAsString(HEAD));
-        // Add the branch to the list
-        File branch = join(branchList, name);
-        branch.createNewFile();
+        // Update the branch list
+        writeContents(newBranch, branchName);
+        // Update the branchHead to the HEAD's content, point to the current commit
+        File branchHead = join(HEAD_DIR, branchName);
+        writeContents(branchHead, readContentsAsString(HEAD));
     }
 }

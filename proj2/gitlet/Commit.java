@@ -192,4 +192,9 @@ public class Commit implements Serializable {
         }
         return blobsList;
     }
+    /** Check if a file is tracked in the HEAD commit */
+    public static boolean trackFile(String fileName) {
+        Commit currentCommit = getCommit(readContentsAsString(Repository.HEAD));
+        return currentCommit.findFile(fileName);
+    }
 }

@@ -46,25 +46,6 @@ public class Stage {
         return sha1(readContentsAsString(file1)) == sha1(readContentsAsString(file2));
     }
     /**
-     * Staging file1 if it meets the conditions
-     * if it is identical to file2, don't do anything
-     * if it is different, overwrite it with writeContents
-     * ?? the content of the file is blobID?
-     */
-    public static void stagingSameNameFile(File file1, File file2) {
-        // The staging area has the file(means 1. the file is not the same as the file
-        // in the current commit if there is one 2. there is no same file in the REMOVE)
-        // if it is the same as the file in ADDITION, do nothing
-        // if it is not the same, overwrite the file,
-        // then check if the current commit has the file, if same content remove the ADDITION file
-        if(!fileContentCheck(file1, file2)) {
-            writeContents(file2, readContentsAsString(file1));
-        }
-        // The staging are does not have the file,
-        // Check if the current commit has the same file, if not add file to stage remove file in REMOVE
-        // if yes check REMOVE
-    }
-    /**
      * Staging a file
      */
     public static void stagingFile(String fileName) {
@@ -93,7 +74,7 @@ public class Stage {
         fileRemove(fileName);
     }
     /**
-     * Remove a file from REMOVE if it exist
+     * Remove a file from REMOVE if it exists
      */
     private static void fileRemove(String fileName) {
         if(findFileREMOVE(fileName)) {
@@ -102,15 +83,12 @@ public class Stage {
         }
     }
     /**
-     * Staging a file in the current stage
-     */
-    /**
      * Staging a file that is not in the staging area
      */
     public static void stagingFileADDTION(String fileName) {
         File file = join(Repository.CWD, fileName);
         File inFile = join(ADDITION, fileName);
-        writeContents(inFile, readContentsAsString(file));
+        writeContents(inFile, readgitContentsAsString(file));
     }
     /**
      * Check if a file is already in the ADDITION staging area

@@ -69,13 +69,21 @@ public class Main {
                         System.out.println("Please enter a message.");
                         System.exit(0);
                         break;
-                    case 2:
+                    case 3:
+                        if(!args[1].equals("--")) {
+                            System.out.println("Incorrect operands.");
+                            System.exit(0);
+                        }
                         Repository.checkout(Repository.getContentAsString(Repository.HEAD), args[2]);
                         break;
-                    case 3:
+                    case 4:
+                        if(!args[2].equals("--")) {
+                            System.out.println("Incorrect operands.");
+                            System.exit(0);
+                        }
                         Repository.checkout(args[1], args[3]);
                         break;
-                    case 4:
+                    case 2:
                         Repository.checkout(args[1]);
                         break;
                 }
