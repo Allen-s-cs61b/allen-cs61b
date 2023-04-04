@@ -87,6 +87,7 @@ public class Main {
                         Repository.checkout(args[1]);
                         break;
                 }
+                break;
             case "branch":
                 if(args.length == 1){
                     System.out.println("Please enter a branch name.");

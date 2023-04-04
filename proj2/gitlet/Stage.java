@@ -88,7 +88,7 @@ public class Stage {
     public static void stagingFileADDTION(String fileName) {
         File file = join(Repository.CWD, fileName);
         File inFile = join(ADDITION, fileName);
-        writeContents(inFile, readgitContentsAsString(file));
+        writeContents(inFile, readContentsAsString(file));
     }
     /**
      * Check if a file is already in the ADDITION staging area

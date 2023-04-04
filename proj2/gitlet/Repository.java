@@ -64,28 +64,23 @@ public class Repository {
         // Set up more
         Blobs.setUpBlobs();
     }
-    /** Copy all the files in CWD to the repository directory */
-    private static void parseCopyRepository() throws IOException {
-        // Clean up the Repo
-        cleanRepository();
-        repository.mkdir();
+    /**
+     * Copy all the files in CWD to the repository directory for the current commit
+     * create a subdirectory that has the name of the commitID and store files in it
+     */
+    private static void parseCopyRepository(String commitID) throws IOException {
+        File subrepo = join(repository, commitID);
+        subrepo.mkdir();
         List<String> fileCWD = plainFilenamesIn(CWD);
         for(String each : fileCWD) {
-            File newFile = join(repository, each);
+            File newFile = join(subrepo, each);
             newFile.createNewFile();
         }
     }
     /** Return the List<String> of repository */
-    private static List<String> listRepository() {
-        return plainFilenamesIn(".gitlet/repository");
-    }
-    /** Clean all the files in the repository */
-    private static void cleanRepository() {
-        List<String> fileRepo = listRepository();
-        for(String each : fileRepo) {
-            File file = join(repository, each);
-            file.delete();
-        }
+    private static List<String> listRepository(String commitID) {
+        File subrepo = join(repository, commitID);
+        return plainFilenamesIn(subrepo);
     }
     /** Make the initial commit */
     public static void makeInitCommit() throws IOException {
@@ -114,7 +109,7 @@ public class Repository {
         File newBranch = join(branchList, "master");
         newBranch.createNewFile();
         // List of the files in the current working directory which will be the future repository
-        parseCopyRepository();
+        parseCopyRepository(initCommit.generateID());
     }
 
     /**
@@ -147,7 +142,7 @@ public class Repository {
         String branchName = readContentsAsString(currentBranch);
         File branchHead = join(HEAD_DIR, branchName);
         writeContents(branchHead, commit.generateID());
-        parseCopyRepository();
+        parseCopyRepository(commit.generateID());
     }
     /** Get the content as string(ID to commit) in the pointer */
     public static String getContentAsString(File file) {
@@ -301,18 +296,18 @@ public class Repository {
      * nor tracked 指的是不在current commit(head)里面？commit's findFile()
      */
     private static List<String> untrackedFile() {
-        List<String> repository = listRepository();
+        // Check the currentCommit(HEAD)
+        List<String> subrepo = listRepository(readContentsAsString(HEAD));
         List<String> workingDir = plainFilenamesIn(CWD);
         List<String> untrackedFile = new ArrayList<>();
-        List<String> additionList = plainFilenamesIn(".gitlet/stage/addition");
         Commit currentCommit = Commit.getCommit(readContentsAsString(HEAD));
         for(String each : workingDir) {
             // A file is not tracked if it is in the current CWD
             // but not in the previous repository(exclude files like gitlet-design.md, makefile, pom.xml, proj2.iml)
             // 1. not tracked and not staged for addition
             // 2. in the remove(rm but added back)
-            if(!repository.contains(each)) {
-                if(!Commit.trackFile(each) && !Stage.findFileADDITION(each)) {
+            if(!subrepo.contains(each)) {
+                if(!currentCommit.trackFile(each) && !Stage.findFileADDITION(each)) {
                     untrackedFile.add(each);
                 } else if(Stage.findFileREMOVE(each)) {
                     untrackedFile.add(each);
@@ -373,7 +368,6 @@ public class Repository {
             System.out.println("No such branch exists.");
             System.exit(0);
         }
-        //needs test, getName
         if(branchName.equals(readContentsAsString(currentBranch))) {
             System.out.println("No need to checkout the current branch.");
             System.exit(0);
@@ -383,24 +377,35 @@ public class Repository {
             System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
             System.exit(0);
         }
-        // Clean all untracked file
-        for(String each : untrackedFile) {
-            File file = join(CWD, each);
-            file.delete();
-        }
+        // each commit has its own repository list with the directory name commit ID
         // overwrite all files in commit(because the files in CWD in either untracked or files
         // that has been tracked)
-        Commit currentCommit = Commit.getCommit(readContentsAsString(HEAD));
-        List<Blobs> blobsList = currentCommit.getBlobsList();
+        File branchHead = join(HEAD_DIR, branchName);
+        Commit branchCommit = Commit.getCommit(readContentsAsString(branchHead));
+        // Clean up the working directory first
+        File branchRepo = join(repository, branchCommit.generateID());
+        List<String> branchRepoList = plainFilenamesIn(branchRepo);
+        List<String> workingDir = plainFilenamesIn(CWD);
+        // If a file in the working directory is not in the branch head commit repo, delete it
+        for(String each : workingDir) {
+            if(!branchRepoList.contains(each)) {
+                File deleteFile = join(CWD, each);
+                deleteFile.delete();
+                //System.out.println(deleteFile.exists());
+            }
+        }
+        // Upload all the files from the branch head commit(creating or overwriting)
+        List<Blobs> blobsList = branchCommit.getBlobsList();
         for(Blobs each : blobsList) {
             File outFile = join(CWD, each.getFileName());
             writeContents(outFile, each.getContent());
         }
         // Update the current branch
         writeContents(currentBranch, branchName);
-        // Update the branch head
-        File branchHead = join(HEAD_DIR, branchName);
-        writeContents(branchHead, currentCommit.generateID());
+        // no need to Update the branch head
+        // Update the HEAD to the current branch head
+        writeContents(HEAD, readContentsAsString(branchHead));
+        //writeContents(branchHead, branchCommit.generateID());
         // Clean stage
         Stage.stageClean();
     }
