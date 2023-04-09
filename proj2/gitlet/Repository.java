@@ -435,4 +435,24 @@ public class Repository {
         File branchHead = join(HEAD_DIR, branchName);
         writeContents(branchHead, readContentsAsString(HEAD));
     }
+
+    /**
+     * Description: Deletes the branch with the given name. This only means to delete the
+     * pointer associated with the branch; it does not mean to delete all commits that were
+     * created under the branch, or anything like that.
+     */
+    public static void rmBranch(String branchName) {
+        if(branchName.equals(readContentsAsString(currentBranch))) {
+            System.out.println("Cannot remove the current branch.");
+            System.exit(0);
+        }
+        File branchRemove = join(branchList, branchName);
+        if(!branchRemove.exists()) {
+            System.out.println("A branch with that name does not exist.");
+            System.exit(0);
+        }
+        branchRemove.delete();
+        File branchHeadRemove = join(HEAD_DIR, branchName);
+        branchHeadRemove.delete();
+    }
 }

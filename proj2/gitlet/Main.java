@@ -94,6 +94,14 @@ public class Main {
                     System.exit(0);
                 }
                 Repository.branch(args[1]);
+                break;
+            case "rm-branch":
+                if(args.length == 1){
+                    System.out.println("Please enter a branch name.");
+                    System.exit(0);
+                }
+                Repository.rmBranch(args[1]);
+                break;
         }
     }
 }
