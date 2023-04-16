@@ -197,4 +197,16 @@ public class Commit implements Serializable {
         //Commit currentCommit = getCommit(readContentsAsString(Repository.HEAD));
         return this.findFile(fileName);
     }
+    /** blob map */
+    public static List<String> trackedFileList(String commitID) {
+        Commit commit = getCommit(commitID);
+        List<String> trackedList = new ArrayList<>();
+        for(String each : commit.blobsMap.keySet()) {
+            trackedList.add(each);
+        }
+        return trackedList;
+    }
+    public String getParentID() {
+        return this.parent;
+    }
 }

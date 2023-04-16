@@ -102,6 +102,13 @@ public class Main {
                 }
                 Repository.rmBranch(args[1]);
                 break;
+            case "reset":
+                if(args.length == 1){
+                    System.out.println("Please enter a commit ID.");
+                    System.exit(0);
+                }
+                Repository.reset(args[1]);
+                break;
         }
     }
 }

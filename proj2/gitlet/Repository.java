@@ -383,17 +383,7 @@ public class Repository {
         File branchHead = join(HEAD_DIR, branchName);
         Commit branchCommit = Commit.getCommit(readContentsAsString(branchHead));
         // Clean up the working directory first
-        File branchRepo = join(repository, branchCommit.generateID());
-        List<String> branchRepoList = plainFilenamesIn(branchRepo);
-        List<String> workingDir = plainFilenamesIn(CWD);
-        // If a file in the working directory is not in the branch head commit repo, delete it
-        for(String each : workingDir) {
-            if(!branchRepoList.contains(each)) {
-                File deleteFile = join(CWD, each);
-                deleteFile.delete();
-                //System.out.println(deleteFile.exists());
-            }
-        }
+        cleanUpCurrentRepo(branchCommit.generateID());
         // Upload all the files from the branch head commit(creating or overwriting)
         List<Blobs> blobsList = branchCommit.getBlobsList();
         for(Blobs each : blobsList) {
@@ -408,6 +398,22 @@ public class Repository {
         //writeContents(branchHead, branchCommit.generateID());
         // Clean stage
         Stage.stageClean();
+    }
+    /**
+     *  Delete files in the current working repo which are not in B repo(given the commit ID)
+     */
+    private static void cleanUpCurrentRepo(String branchCommitID) {
+        File branchRepo = join(repository, branchCommitID);
+        List<String> branchRepoList = plainFilenamesIn(branchRepo);
+        List<String> workingDir = plainFilenamesIn(CWD);
+        // If a file in the working directory is not in the branch head commit repo, delete it
+        for(String each : workingDir) {
+            if(!branchRepoList.contains(each)) {
+                File deleteFile = join(CWD, each);
+                deleteFile.delete();
+                //System.out.println(deleteFile.exists());
+            }
+        }
     }
     /** Return a List<String> of branch names */
     private static List<String> branchList() {
@@ -454,5 +460,77 @@ public class Repository {
         branchRemove.delete();
         File branchHeadRemove = join(HEAD_DIR, branchName);
         branchHeadRemove.delete();
+    }
+    /**
+     * Description: Checks out all the files tracked by the given commit. Removes tracked
+     * files that are not present in that commit. Also moves the current branch’s head to
+     * that commit node. See the intro for an example of what happens to the head pointer
+     * after using reset. The [commit id] may be abbreviated as for checkout. The staging
+     * area is cleared. The command is essentially checkout of an arbitrary commit that also
+     * changes the current branch head.
+     */
+    public static void reset(String commitID) {
+        // Check if there is untracked file
+        List<String> untrackedFile = untrackedFile();
+        if(!untrackedFile.isEmpty()) {
+            System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+            System.exit(0);
+        }
+        if(!Commit.findWithID(commitID)) {
+            System.out.println("No commit with that id exists.");
+            System.exit(0);
+        }
+        // Iterate the current repo and the commitID repo and delete all
+        // that are not there
+        cleanUpCurrentRepo(commitID);
+        // In the commit, the blobmap has keys of the all the file names
+        // Iterate through keys, and use check out
+        List<String> trackedFiles = Commit.trackedFileList(commitID);
+        for(String each : trackedFiles) {
+            checkout(commitID, each);
+        }
+        // Clean up staging area
+        Stage.stageClean();
+        // Update the headers
+        updateHeaders(commitID);
+    }
+    /**
+     * update all the headers to the current commitID, including HEAD and current branch header
+     */
+    private static void updateHeaders(String commitID) {
+        writeContents(HEAD, commitID);
+        File branch = join(HEAD_DIR, readContentsAsString(currentBranch));
+        writeContents(branch, commitID);
+    }
+    /**
+     * Merge the files in the given branch to the current branch, first find the split point
+     * If the split point is the same commit as the given branch, then we do nothing; the merge
+     * is complete, and the operation ends with the message Given branch is an ancestor of the
+     * current branch. If the split point is the current branch, then the effect is to check out
+     * the given branch, and the operation ends after printing the message Current branch
+     * fast-forwarded.
+     * Merging condition:
+     * 1.
+     */
+    public static void merge() {
+
+    }
+    private String findSplitPoint(String currentBranchID, String givenBranchID) {
+        // Iterate through the current branch and given branch, ID = parentID, if null switch branch
+        // and reiterate until the two ID are equal.
+        String ID1 = currentBranchID;
+        String ID2 = givenBranchID;
+        Commit currentCommit = Commit.getCommit(ID1);
+        Commit givenCommit = Commit.getCommit(ID2);
+        while(ID1 != ID2) {
+            // If an ID is null, switch it to the other branch
+            if(ID1 == null) {
+                ID1 = givenBranchID;
+            }
+            if(ID2 == null) {
+                ID2 = currentBranchID;
+            }
+        }
+
     }
 }
