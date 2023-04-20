@@ -35,11 +35,11 @@ public class Blobs implements Serializable {
         // guessing the "Hello.txt" file added are from the working directory
         File inFile = join(Repository.CWD, fileName);
         // Read the inFile("Hello.txt") and set the ID to its sha1 value
-        this.contentID = generateFileID(inFile);
+        this.contentID = generateFileID(inFile);  //??? maybe deleted
         this.content = readContentsAsString(inFile);
         // Add the blob to the BLOBS_DIR
-        File blob = join(BLOBS_DIR, this.generateBlobID());
-        writeObject(blob,this);
+        File blobDIR = join(BLOBS_DIR, this.generateBlobID());
+        writeObject(blobDIR,this);
     }
     /** Set up blobs directory */
     public static void setUpBlobs() {
@@ -72,5 +72,12 @@ public class Blobs implements Serializable {
         File blobFile = join(BLOBS_DIR, blobID);
         Blobs blob = readObject(blobFile, Blobs.class);
         return blob;
+    }
+    public static String getContent(String blobID) {
+        if(blobID == null) {
+            return "";
+        }
+        Blobs blob = getBlob(blobID);
+        return blob.getContent();
     }
 }

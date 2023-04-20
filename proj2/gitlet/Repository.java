@@ -2,9 +2,7 @@ package gitlet;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.*;
 
 import static gitlet.Utils.*;
 
@@ -42,6 +40,8 @@ public class Repository {
     private static File branchList = join(GITLET_DIR, "branchList");
     /** Track the file in the repository, set up everytime commit is called */
     private static File repository = join(GITLET_DIR, "repository");
+    /** Hash map that stores all the commit ID abbreviation */
+    private static HashMap<String, String> commitIDMap = new HashMap<>();
 
     /** Set up all the directories */
     public static void setupRepository() {
@@ -103,6 +103,8 @@ public class Repository {
         // Set the HEAD and master branch head pointer
         writeContents(HEAD, initCommit.generateID());
         writeContents(master, initCommit.generateID());
+        // Add the commit ID to the abbreviation map
+        commitIDMap.put(initCommit.generateID().substring(0,6), initCommit.generateID());
         // Set the currentBranch to master (overwrite whatever)
         writeContents(currentBranch, "master");
         // Add the name of master in the branchList
@@ -131,6 +133,19 @@ public class Repository {
         writeObject(commitFile, commit);
         setupCommit(commit);
     }
+
+    /**
+     * Make merge commit(I don't think it is appropriate to delete the given branch)
+     * @param message
+     * @param givenBranchName
+     * @throws IOException
+     */
+    private static void makeMergeCommit(String message, String givenBranchName) throws IOException {
+        Commit commit = new Commit(message);
+        File commitFile = join(Commit.COMMIT_DIR, commit.generateID());
+        writeObject(commitFile, commit);
+        setupMergeCommit(commit, givenBranchName);
+    }
     /**
      * Set up all the files for commit(HEAD, update branch head pointer based on currentBranch,
      * repository)
@@ -138,10 +153,30 @@ public class Repository {
     private static void setupCommit(Commit commit) throws IOException {
         // Update HEAD
         writeContents(HEAD, commit.generateID());
+        // Add the commit ID to the abbreviation map
+        commitIDMap.put(commit.generateID().substring(0,6), commit.generateID());
         // Update current branch head
         String branchName = readContentsAsString(currentBranch);
         File branchHead = join(HEAD_DIR, branchName);
         writeContents(branchHead, commit.generateID());
+        parseCopyRepository(commit.generateID());
+    }
+
+    /**
+     * Set up merge commit, delete the given branch from branch list
+     * Set both the current branch and given branch's head to this commit
+     * @param commit
+     * @throws IOException
+     */
+    private static void setupMergeCommit(Commit commit, String givenBranchName) throws IOException {
+        // Update HEAD
+        writeContents(HEAD, commit.generateID());
+        // Update current branch and the given branch head
+        String branchName = readContentsAsString(currentBranch);
+        File branchHead = join(HEAD_DIR, branchName);
+        writeContents(branchHead, commit.generateID());
+        File givenBranchHead = join(HEAD_DIR, givenBranchName);
+        writeContents(givenBranchHead, commit.generateID());
         parseCopyRepository(commit.generateID());
     }
     /** Get the content as string(ID to commit) in the pointer */
@@ -250,6 +285,12 @@ public class Repository {
      * format it should follow is as follows.
      */
     public static void status() {
+        // Check if initial commit has been run
+        File init = join(CWD, ".gitlet");
+        if(!init.exists()) {
+            System.out.println("Not in an initialized Gitlet directory.");
+            System.exit(0);
+        }
         // Printing all the branches
         System.out.println("=== Branches ===");
         List<String> branchList = branchList();
@@ -297,7 +338,7 @@ public class Repository {
      */
     private static List<String> untrackedFile() {
         // Check the currentCommit(HEAD)
-        List<String> subrepo = listRepository(readContentsAsString(HEAD));
+        List<String> subRepo = listRepository(readContentsAsString(HEAD));
         List<String> workingDir = plainFilenamesIn(CWD);
         List<String> untrackedFile = new ArrayList<>();
         Commit currentCommit = Commit.getCommit(readContentsAsString(HEAD));
@@ -306,7 +347,7 @@ public class Repository {
             // but not in the previous repository(exclude files like gitlet-design.md, makefile, pom.xml, proj2.iml)
             // 1. not tracked and not staged for addition
             // 2. in the remove(rm but added back)
-            if(!subrepo.contains(each)) {
+            if(!subRepo.contains(each)) {
                 if(!currentCommit.trackFile(each) && !Stage.findFileADDITION(each)) {
                     untrackedFile.add(each);
                 } else if(Stage.findFileREMOVE(each)) {
@@ -334,14 +375,16 @@ public class Repository {
      * (see Failure cases below).
      */
     public static void checkout(String commitID, String name) {
+        String subID = commitID.substring(0,6);
+        String fullID = Commit.findIDWithSubID(subID);
         // Check if the ID exists
-        if(!Commit.findWithID(commitID)) {
+        if(fullID == null) {
             System.out.println("No commit with that id exists.");
             System.exit(0);
         }
-        // Check the HEAD commit, if we can't find the file "name", print and exit
+        // Check the given commit, if we can't find the file "name", print and exit
         // If you find the file, write it to the working directory, overwrite or create a new one
-        Commit currentCommit = Commit.getCommit(commitID);
+        Commit currentCommit = Commit.getCommit(fullID);
         if(!currentCommit.findFile(name)) {
             System.out.println("File does not exist in that commit.");
             System.exit(0);
@@ -512,25 +555,187 @@ public class Repository {
      * Merging condition:
      * 1.
      */
-    public static void merge() {
-
+    public static void merge(String branchName) throws IOException {
+        if(!Stage.stageEmpty()) {
+            System.out.println("You have uncommitted changes.");
+            System.exit(0);
+        }
+        File branchCheck = join(branchList, branchName);
+        if(!branchCheck.exists()) {
+            System.out.println("A branch with that name does not exist.");
+            System.exit(0);
+        }
+        String currentBranchName = readContentsAsString(currentBranch);
+        if(branchName.equals(currentBranchName)) {
+            System.out.println("Cannot merge a branch with itself.");
+            System.exit(0);
+        }
+        // There exist an untracked file and the untracked file is in the blob map or not
+        // of the given commit which means it will be either overwritten or delete
+        List untrackedFileList = untrackedFile();
+        if(!untrackedFileList.isEmpty()) {
+           System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+           System.exit(0);
+        }
+        // Compare split point and given commit and current commit
+        mergeProcess(branchName);
+        makeMergeCommit("Merged " + branchName + " into " + currentBranchName + ".", branchName);
     }
-    private String findSplitPoint(String currentBranchID, String givenBranchID) {
+
+    /**
+     * The entire merge process
+     * @param branchName
+     * @throws IOException
+     */
+    private static void mergeProcess(String branchName) throws IOException {
+        // Access the given branch ID
+        File givenBranch = join(HEAD_DIR, branchName);
+        String givenBranchID = readContentsAsString(givenBranch);
+        // Access the current branch ID
+        String currentBranchID = readContentsAsString(HEAD);
+        String splitPointID = findSplitPoint(currentBranchID, givenBranchID);
+        if(splitPointID.equals(givenBranchID)) {
+            System.out.println("Given branch is an ancestor of the current branch.");
+            System.exit(0);
+        }
+        if(splitPointID.equals(currentBranchID)) {
+            checkout(branchName);
+            System.out.println("Current branch fast-forwarded.");
+            System.exit(0);
+        }
+        // List of files in splitPoint
+        List<String> splitPointFileList = Commit.trackedFileList(splitPointID);
+        // List of files in givenBranch
+        List<String> givenBranchFileList = Commit.trackedFileList(givenBranchID);
+        // List of files in currentBranch
+        List<String> currentBranchFileList = Commit.trackedFileList(currentBranchID);
+        List<String> presentInSplitPointFileList = sortFilePresentInSplitPoint(splitPointFileList,
+                givenBranchFileList, currentBranchFileList, "present");
+        List<String> notPresentInSplitPointFileList = sortFilePresentInSplitPoint(splitPointFileList,
+                givenBranchFileList, currentBranchFileList, "not present");
+
+        Commit splitPointCommit = Commit.getCommit(splitPointID);
+        Commit currentCommit = Commit.getCommit(currentBranchID);
+        Commit givenCommit = Commit.getCommit(givenBranchID);
+        Boolean conflict = false;
+        // The files that are present in the split point commit
+        for(String each : presentInSplitPointFileList) {
+            // The file is present in both given and current commit 全部都有 有四种情况
+            if(currentBranchFileList.contains(each) && givenBranchFileList.contains(each)) {
+                // If given and current blobID are the same, that means the file have the same content, nothing needs to be done
+                // If given change or current change while the other unchanged, update to the changed one
+                // If both change and change to different ones, conflict happens
+                if(splitPointCommit.getBlobID(each).equals(currentCommit.getBlobID(each)) &&
+                        !splitPointCommit.getBlobID(each).equals(givenCommit.getBlobID(each))) {
+                    checkout(givenBranchID, each);
+                    add(each);
+                } else if(!splitPointCommit.getBlobID(each).equals(currentCommit.getBlobID(each)) &&
+                        !splitPointCommit.getBlobID(each).equals(givenCommit.getBlobID(each)) &&
+                        !givenCommit.getBlobID(each).equals(currentCommit.getBlobID(each))) {
+                    conflict(currentCommit.getBlobID(each), givenCommit.getBlobID(each), each);
+                    conflict = true;
+                }
+            } else {
+                // If in current it is deleted, but in given it is modified(different to split), conflict happens
+                // If in current it is modified, but in commit it is deleted, conflict happens
+                // If only given branch has the file, that means current branch and current repository
+                // does not have the file, nothing needs to be done
+                // If current branch has the file which means the current repository has the file, rm file
+                if(!currentBranchFileList.contains(each) && givenBranchFileList.contains(each) &&
+                        !givenCommit.getBlobID(each).equals(splitPointCommit.getBlobID(each))) {
+                    conflict(null, givenCommit.getBlobID(each), each);
+                    conflict = true;
+                } else if(currentBranchFileList.contains(each) && !givenBranchFileList.contains(each) &&
+                        !currentCommit.getBlobID(each).equals(splitPointCommit.getBlobID(each))) {
+                    conflict(currentCommit.getBlobID(each), null, each);
+                    conflict = true;
+                } else if(currentBranchFileList.contains(each)) {
+                    rm(each); //???
+                }
+            }
+        }
+        // The files that are not present in the split point commit
+        for(String each : notPresentInSplitPointFileList) {
+            // Only current has the file, delete it
+            // Only given has the file, update it
+            // Both have the file, if same, do nothing; if different, conflict
+            if(!currentBranchFileList.contains(each) && givenBranchFileList.contains(each)) {
+                checkout(givenBranchID, each);
+                add(each);
+            } else if(currentBranchFileList.contains(each) && !givenBranchFileList.contains(each)) {
+                // nothing needs to be done
+            } else if(currentBranchFileList.contains(each) && givenBranchFileList.contains(each)) {
+                if(!currentCommit.getBlobID(each).equals(givenCommit.getBlobID(each))) {
+                    conflict(currentCommit.getBlobID(each), givenCommit.getBlobID(each), each);
+                    conflict = true;
+                }
+            }
+        }
+        if(conflict) {
+            System.out.println("Encountered a merge conflict.");
+        }
+    }
+
+    /**
+     * Create a new file that has both content and write it to CWD(overwrite or create)
+     * then add file to the Addition staging area.
+     * @param currentBlobID
+     * @param givenBlobID
+     */
+    private static void conflict(String currentBlobID, String givenBlobID, String fileName) {
+        String format = "<<<<<<< HEAD\n" + Blobs.getContent(currentBlobID) +
+                "=======\n" + Blobs.getContent(givenBlobID) + ">>>>>>>\n";
+        File outFile = join(CWD, fileName);
+        writeContents(outFile, format);
+        add(fileName);
+    }
+    /**
+     * Return the ID of the splitting commit
+     * @param currentBranchID
+     * @param givenBranchID
+     * @return
+     */
+    private static String findSplitPoint(String currentBranchID, String givenBranchID) {
         // Iterate through the current branch and given branch, ID = parentID, if null switch branch
         // and reiterate until the two ID are equal.
         String ID1 = currentBranchID;
         String ID2 = givenBranchID;
         Commit currentCommit = Commit.getCommit(ID1);
         Commit givenCommit = Commit.getCommit(ID2);
-        while(ID1 != ID2) {
+        while(!ID1.equals(ID2)) {
             // If an ID is null, switch it to the other branch
+            Commit currentGivenCommit = Commit.getCommit(ID1);
+            ID1 = currentGivenCommit.getParentID();
             if(ID1 == null) {
                 ID1 = givenBranchID;
             }
+            Commit currentCurrentCommit = Commit.getCommit(ID2);
+            ID2 = currentCurrentCommit.getParentID();
             if(ID2 == null) {
                 ID2 = currentBranchID;
             }
         }
+        return ID1;
+    }
 
+    private static List<String> sortFilePresentInSplitPoint
+            (List splitPointFileList, List givenBranchFileList, List currentBranchFileList, String command) {
+        Set<String> allFileSet = new HashSet<>();
+        allFileSet.addAll(splitPointFileList);
+        allFileSet.addAll(givenBranchFileList);
+        allFileSet.addAll(currentBranchFileList);
+        List<String> presentInSplitPointFileList = new ArrayList<>();
+        List<String> notPresentInSplitPointFileList = new ArrayList<>();
+        for(String each : allFileSet) {
+            if(splitPointFileList.contains(each)) {
+                presentInSplitPointFileList.add(each);
+            } else {
+                notPresentInSplitPointFileList.add(each);
+            }
+        }
+        if(command.equals("present")) {
+            return presentInSplitPointFileList;
+        }
+        return notPresentInSplitPointFileList;
     }
 }

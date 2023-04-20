@@ -83,6 +83,15 @@ public class Commit implements Serializable {
     public String generateID() {
         return sha1(serialize(this));
     }
+    /** Generate a sub-unique ID(abbreviation) for the commit object */
+    public static String findIDWithSubID(String subID) {
+        for(String each : plainFilenamesIn(COMMIT_DIR)) {
+            if(each.substring(0,6).equals(subID)) {
+                return each;
+            }
+        }
+        return null;
+    }
     /** Get the current based on the commitID */
     public static Commit getCommit(String commitID) {
         //String CommitID = readContentsAsString(Repository.HEAD);
@@ -185,6 +194,7 @@ public class Commit implements Serializable {
     public String getBlobID(String fileName) {
         return blobsMap.get(fileName);
     }
+    /** Return list of blobID in the blob map */
     public List<Blobs> getBlobsList() {
         List<Blobs> blobsList = new ArrayList<>();
         for(String value : blobsMap.values()) {
@@ -197,7 +207,7 @@ public class Commit implements Serializable {
         //Commit currentCommit = getCommit(readContentsAsString(Repository.HEAD));
         return this.findFile(fileName);
     }
-    /** blob map */
+    /** Return a list of filenames in blob map */
     public static List<String> trackedFileList(String commitID) {
         Commit commit = getCommit(commitID);
         List<String> trackedList = new ArrayList<>();
@@ -206,6 +216,7 @@ public class Commit implements Serializable {
         }
         return trackedList;
     }
+    /** Return the parentID */
     public String getParentID() {
         return this.parent;
     }
